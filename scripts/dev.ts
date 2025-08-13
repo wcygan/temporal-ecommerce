@@ -31,7 +31,8 @@ function checkEnvironment(): boolean {
   const required = [
     "STRIPE_PRIVATE_KEY",
     "RESEND_API_KEY", 
-    "RESEND_FROM_EMAIL"
+    "RESEND_FROM_EMAIL",
+    "TEST_EMAIL"
   ];
   
   let allSet = true;
@@ -132,6 +133,47 @@ async function commandExists(command: string): Promise<boolean> {
   }
 }
 
+// Kill processes using specified ports
+async function killPortProcesses(ports: number[]): Promise<void> {
+  console.log("🧹 Cleaning up processes on required ports...");
+  
+  for (const port of ports) {
+    try {
+      // Find processes using the port
+      const lsofCommand = new Deno.Command("lsof", {
+        args: ["-ti", `:${port}`],
+        stdout: "piped",
+        stderr: "null"
+      });
+      
+      const { success, stdout } = await lsofCommand.output();
+      
+      if (success && stdout.length > 0) {
+        const pids = new TextDecoder().decode(stdout).trim().split('\n').filter(pid => pid);
+        
+        for (const pid of pids) {
+          console.log(`  🔪 Killing process ${pid} on port ${port}`);
+          try {
+            const killCommand = new Deno.Command("kill", {
+              args: ["-9", pid],
+              stdout: "null",
+              stderr: "null"
+            });
+            await killCommand.output();
+          } catch {
+            // Ignore kill errors (process might already be dead)
+          }
+        }
+      }
+    } catch {
+      // lsof might not be available or port might be free - ignore
+    }
+  }
+  
+  // Wait a bit for ports to be freed
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
+
 // Wait for frontend dependencies to be installed
 async function ensureFrontendDeps(): Promise<void> {
   const nodeModulesExists = await exists("frontend/node_modules");
@@ -154,6 +196,9 @@ async function ensureFrontendDeps(): Promise<void> {
 
 async function main(): Promise<void> {
   console.log("🏗️  Starting Temporal E-commerce Development Environment\n");
+  
+  // Clean up any processes using our ports
+  await killPortProcesses([7233, 8233, 3001, 8080]);
   
   // Load environment variables
   await loadEnv();
@@ -235,18 +280,30 @@ async function main(): Promise<void> {
     console.log("⏳ Waiting for Temporal server to start...");
     await new Promise(resolve => setTimeout(resolve, 3000));
     
-    // Start Worker
+    // Start Worker  
     const worker = await startService("Worker", ["go", "run", "worker/main.go"]);
     services.push(worker);
+    
+    // Wait a bit for worker to connect
+    console.log("⏳ Waiting for worker to connect...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Start API Server
     const api = await startService("API", ["go", "run", "api/main.go"]);
     services.push(api);
     
+    // Wait a bit for API to start
+    console.log("⏳ Waiting for API server to start...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     // Ensure frontend dependencies and start frontend
     await ensureFrontendDeps();
     const frontend = await startService("Frontend", ["npm", "start"], "frontend");
     services.push(frontend);
+    
+    // Wait for frontend to compile
+    console.log("⏳ Waiting for frontend to compile...");
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     console.log("\n🎉 All services started successfully!");
     console.log("\n📋 Service URLs:");
@@ -255,19 +312,31 @@ async function main(): Promise<void> {
     console.log("   ⚡ Temporal UI: http://localhost:8233");
     console.log("\n💡 Press Ctrl+C to stop all services");
     
-    // Monitor services and restart if any fail
-    const serviceStatuses = services.map(async (service, index) => {
-      const status = await service.status;
-      if (!isShuttingDown && !status.success) {
-        console.error(`❌ Service ${index + 1} exited unexpectedly with code ${status.code}`);
-        await cleanup();
-        Deno.exit(1);
-      }
-      return status;
+    // Keep the script running until interrupted
+    console.log("🔄 Monitoring services... Press Ctrl+C to stop");
+    
+    // Create a promise that never resolves (keeps script running)
+    const keepAlive = new Promise<void>(() => {});
+    
+    // Monitor services for unexpected exits in the background
+    const serviceNames = ["Temporal", "Worker", "API", "Frontend"];
+    services.forEach((service, index) => {
+      service.status.then((status) => {
+        if (!isShuttingDown) {
+          console.error(`❌ ${serviceNames[index]} service exited unexpectedly with code ${status.code}`);
+          console.error(`   This usually indicates a configuration or dependency issue.`);
+          cleanup().then(() => Deno.exit(1));
+        }
+      }).catch((error) => {
+        if (!isShuttingDown) {
+          console.error(`❌ ${serviceNames[index]} service monitoring error:`, error.message);
+          cleanup().then(() => Deno.exit(1));
+        }
+      });
     });
     
-    // Wait for all services to exit or user interruption
-    await Promise.race(serviceStatuses);
+    // Wait for user interruption (keepAlive never resolves)
+    await keepAlive;
     
   } catch (error) {
     console.error(`❌ Error starting services: ${error.message}`);

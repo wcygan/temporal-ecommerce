@@ -13,6 +13,7 @@ var (
 	stripeKey         = os.Getenv("STRIPE_PRIVATE_KEY")
 	resendApiKey      = os.Getenv("RESEND_API_KEY")
 	resendFromEmail   = os.Getenv("RESEND_FROM_EMAIL")
+	testEmail         = os.Getenv("TEST_EMAIL")
 )
 
 func main() {
@@ -34,11 +35,15 @@ func main() {
 	if resendFromEmail == "" {
 		log.Fatalln("Must set RESEND_FROM_EMAIL environment variable")
 	}
+	if testEmail == "" {
+		log.Fatalln("Must set TEST_EMAIL environment variable")
+	}
 
 	a := &app.Activities{
 		StripeKey: stripeKey,
 		ResendApiKey: resendApiKey,
 		ResendFromEmail: resendFromEmail,
+		TestEmail: testEmail,
 	}
 
 	w.RegisterActivity(a.CreateStripeCharge)
