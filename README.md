@@ -1,23 +1,44 @@
 # temporal-ecommerce
 
-This is a demo app for a tutorial showing the process of developing a [Temporal eCommerce application in Go](https://learn.temporal.io/tutorials/go/build-an-ecommerce-app/), using the Stripe and Mailgun APIs.
+This is a demo app for a tutorial showing the process of developing a [Temporal eCommerce application in Go](https://learn.temporal.io/tutorials/go/build-an-ecommerce-app/), using the Stripe and Resend APIs.
 
-## Instructions
+## Quick Start
 
-To run the worker and server, you must set the `STRIPE_PRIVATE_KEY`, `MAILGUN_DOMAIN`, and `MAILGUN_PRIVATE_KEY` environment variables.
-You can set the values to "test", which will allow you to add and remove elements from your cart.
-But you won't be able to checkout or receive abandoned cart notifications if these values aren't set.
+The easiest way to run this application is using the Deno development script:
+
+```bash
+# Copy environment variables from example
+cp .env.example .env
+
+# Edit .env with your actual API keys
+# - Get Stripe key from: https://dashboard.stripe.com/test/apikeys  
+# - Get Resend key from: https://resend.com/api-keys
+
+# Start all services (requires Temporal CLI, Go, and Node.js)
+deno task dev
+```
+
+This will start:
+- Temporal Server (http://localhost:8233)
+- Go Worker
+- Go API Server (http://localhost:3001)  
+- Vue.js Frontend (http://localhost:8080)
+
+## Manual Setup
+
+To run manually, you must set the `STRIPE_PRIVATE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` environment variables.
+You can set the Stripe key to "test" for basic cart functionality, but you'll need real API keys for checkout and abandoned cart notifications.
 
 To run the worker, make sure you have a local instance of Temporal Server running (e.g. with [the Temporal CLI](https://github.com/temporalio/cli)), then run:
 
 ```bash
-env STRIPE_PRIVATE_KEY=stripe-key-here env MAILGUN_DOMAIN=mailgun-domain-here env MAILGUN_PRIVATE_KEY=mailgun-private-key-here go run worker/main.go
+env STRIPE_PRIVATE_KEY=stripe-key-here env RESEND_API_KEY=resend-key-here env RESEND_FROM_EMAIL=noreply@yourdomain.com go run worker/main.go
 ```
 
 To run the API server, you must also set the `PORT` environment variable as follows.
 
 ```bash
-env STRIPE_PRIVATE_KEY=stripe-key-here env MAILGUN_DOMAIN=mailgun-domain-here env MAILGUN_PRIVATE_KEY=mailgun-private-key-here env PORT=3001 go run api/main.go
+env STRIPE_PRIVATE_KEY=stripe-key-here env RESEND_API_KEY=resend-key-here env RESEND_FROM_EMAIL=noreply@yourdomain.com env PORT=3001 go run api/main.go
 ```
 
 You can then run the UI on port 8080:

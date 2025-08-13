@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-run --allow-read --allow-env --allow-write scripts/dev.ts",
+    "up": "deno task dev",
+    "test": "go test -v",
+    "test:frontend": "cd frontend && npm test"
+  },
+  "imports": {
+    "@std/fs": "jsr:@std/fs@1",
+    "@std/path": "jsr:@std/path@1"
+  }
+}
