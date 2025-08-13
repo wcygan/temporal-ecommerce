@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	stripeKey     = os.Getenv("STRIPE_PRIVATE_KEY")
-	mailgunDomain = os.Getenv("MAILGUN_DOMAIN")
-	mailgunKey    = os.Getenv("MAILGUN_PRIVATE_KEY")
+	stripeKey         = os.Getenv("STRIPE_PRIVATE_KEY")
+	resendApiKey      = os.Getenv("RESEND_API_KEY")
+	resendFromEmail   = os.Getenv("RESEND_FROM_EMAIL")
 )
 
 func main() {
@@ -28,17 +28,17 @@ func main() {
 	if stripeKey == "" {
 		log.Fatalln("Must set STRIPE_PRIVATE_KEY environment variable")
 	}
-	if mailgunDomain == "" {
-		log.Fatalln("Must set MAILGUN_DOMAIN environment variable")
+	if resendApiKey == "" {
+		log.Fatalln("Must set RESEND_API_KEY environment variable")
 	}
-	if mailgunKey == "" {
-		log.Fatalln("Must set MAILGUN_PRIVATE_KEY environment variable")
+	if resendFromEmail == "" {
+		log.Fatalln("Must set RESEND_FROM_EMAIL environment variable")
 	}
 
 	a := &app.Activities{
 		StripeKey: stripeKey,
-		MailgunDomain: mailgunDomain,
-		MailgunKey: mailgunKey,
+		ResendApiKey: resendApiKey,
+		ResendFromEmail: resendFromEmail,
 	}
 
 	w.RegisterActivity(a.CreateStripeCharge)

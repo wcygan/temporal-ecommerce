@@ -3,15 +3,15 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/mailgun/mailgun-go"
+	"github.com/resend/resend-go/v2"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/charge"
 )
 
 type Activities struct {
 	StripeKey     string
-	MailgunDomain string
-	MailgunKey    string
+	ResendApiKey  string
+	ResendFromEmail string
 }
 
 func (a *Activities) CreateStripeCharge(_ context.Context, cart CartState) error {
@@ -52,18 +52,21 @@ func (a *Activities) SendAbandonedCartEmail(_ context.Context, email string) err
 	if email == "" {
 		return nil
 	}
-	mg := mailgun.NewMailgun(a.MailgunDomain, a.MailgunKey)
-	m := mg.NewMessage(
-		"noreply@"+a.MailgunDomain,
-		"You've abandoned your shopping cart!",
-		"Go to http://localhost:8080 to finish checking out!",
-		email,
-	)
-	_, _, err := mg.Send(m)
+	
+	client := resend.NewClient(a.ResendApiKey)
+	
+	params := &resend.SendEmailRequest{
+		From:    a.ResendFromEmail,
+		To:      []string{email},
+		Subject: "You've abandoned your shopping cart!",
+		Html:    "<p>Go to <a href=\"http://localhost:8080\">http://localhost:8080</a> to finish checking out!</p>",
+	}
+	
+	_, err := client.Emails.Send(params)
 	if err != nil {
-		fmt.Println("Mailgun err: " + err.Error())
+		fmt.Println("Resend err: " + err.Error())
 		return err
 	}
 
-	return err
+	return nil
 }
